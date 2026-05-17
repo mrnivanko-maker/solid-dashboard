@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solid English School — CEO Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f4f6fb; color: #1a1a2e; padding: 24px; }
+  h2.sr-only { position: absolute; left: -9999px; }
+
+  .top-bar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .top-title { font-size: 18px; font-weight: 500; color: #1a1a2e; }
+  .top-sub { font-size: 13px; color: #666; margin-top: 3px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filters select { font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; color: #1a1a2e; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #e8eaf0; }
+  .kpi-label { font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-val { font-size: 24px; font-weight: 500; color: #1a1a2e; line-height: 1; }
+  .kpi-delta { font-size: 11px; margin-top: 5px; }
+  .up { color: #3B6D11; } .down { color: #A32D2D; } .warn { color: #854F0B; }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .chart-card { background: #fff; border: 1px solid #e8eaf0; border-radius: 12px; padding: 16px; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .card-title { font-size: 11px; font-weight: 500; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 11px; color: #666; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  .alert-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .alert { flex: 1; min-width: 200px; border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.5; }
+  .alert.warn-a { background: #FAEEDA; color: #633806; border-left: 3px solid #EF9F27; }
+  .alert.danger-a { background: #FCEBEB; color: #501313; border-left: 3px solid #E24B4A; }
+  .alert.ok-a { background: #EAF3DE; color: #173404; border-left: 3px solid #639922; }
+  .alert-title { font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+
+  @media (max-width: 600px) { .charts-grid { grid-template-columns: 1fr; } .chart-card.full { grid-column: 1; } }
+</style>
+</head>
+<body>
+<h2 class="sr-only">CEO Dashboard Solid English School — тижневий огляд бізнес-метрик за березень–квітень 2025</h2>
+
+<div class="top-bar">
+  <div>
+    <div class="top-title">Solid English School — CEO Dashboard</div>
+    <div class="top-sub">Тижневий sync · Дані: березень – квітень 2025</div>
+  </div>
+  <div class="filters">
+    <select id="fMonth" onchange="render()">
+      <option value="all">Всі місяці</option>
+      <option value="mar">Березень</option>
+      <option value="apr">Квітень</option>
+    </select>
+    <select id="fSeg" onchange="render()">
+      <option value="all">B2B + B2C</option>
+      <option value="b2b">B2B</option>
+      <option value="b2c">B2C</option>
+    </select>
+    <select id="fTeacher" onchange="render()">
+      <option value="all">Всі викладачі</option>
+      <option value="ft">Full-time</option>
+      <option value="pt">Part-time</option>
+    </select>
+  </div>
+</div>
+
+<div class="kpi-grid" id="kpis"></div>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="card-title">Виручка по тижнях (₴)</div>
+    <div style="position:relative;height:180px"><canvas id="revenueChart" role="img" aria-label="Виручка школи по тижнях, зростає від 312 400 до 391 200 грн">Виручка зростає від 312 400 до 391 200 грн.</canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Завантаженість викладачів (%)</div>
+    <div style="position:relative;height:180px"><canvas id="loadChart" role="img" aria-label="Відсоток завантаженості викладачів, зростає з 78 до 91 відсотка">Зростає з 78% до 91%.</canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Потік студентів: нові vs відписки</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#378ADD"></span>Нові</span>
+      <span><span class="leg-dot" style="background:#E24B4A"></span>Відписки</span>
+    </div>
+    <div style="position:relative;height:160px"><canvas id="flowChart" role="img" aria-label="Нові студенти від 12 до 40 на тиждень, відписки від 8 до 34">Нові: 12–40/тиж. Відписки: 8–34/тиж.</canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">B2B vs B2C — структура виручки</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#378ADD"></span>B2B</span>
+      <span><span class="leg-dot" style="background:#97C459"></span>B2C</span>
+    </div>
+    <div style="position:relative;height:160px"><canvas id="segChart" role="img" aria-label="B2B займає близько 93 відсотків виручки, B2C 7 відсотків">B2B ~93%, B2C ~7%.</canvas></div>
+  </div>
+  <div class="chart-card full">
+    <div class="card-title">NPS та активні студенти по тижнях</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#1D9E75"></span>NPS (ліва вісь)</span>
+      <span><span class="leg-dot" style="background:#7F77DD; border: 1px dashed #7F77DD"></span>Активні студенти (права вісь)</span>
+    </div>
+    <div style="position:relative;height:160px"><canvas id="npsChart" role="img" aria-label="NPS зростає з 8.1 до 8.8, студенти з 487 до 518">NPS 8.1 → 8.8. Студенти: 487 → 518.</canvas></div>
+  </div>
+</div>
+
+<div class="alert-row" id="alerts"></div>
+
+<script>
+const RAW = {
+  weeks: ['W1 03.03','W2 10.03','W3 17.03','W4 24.03','W5 31.03','W6 07.04','W7 14.04','W8 21.04'],
+  months: ['mar','mar','mar','mar','apr','apr','apr','apr'],
+  revenue: [312400,325800,338200,349600,356000,368400,379800,391200],
+  load: [78,80,82,84,86,88,89,91],
+  newStudents: [12,15,18,22,26,31,35,40],
+  churned: [8,11,14,18,22,27,30,34],
+  active: [487,491,495,499,503,507,512,518],
+  nps: [8.1,8.3,8.2,8.4,8.5,8.6,8.7,8.8],
+  rev_b2b_mar: 2084500, rev_b2c_mar: 147000,
+  rev_b2b_apr: 2259300, rev_b2c_apr: 165000,
+};
+
+let charts = {};
+function destroyCharts() { Object.values(charts).forEach(c => c && c.destroy()); charts = {}; }
+
+function render() {
+  const f = {
+    month: document.getElementById('fMonth').value,
+    seg: document.getElementById('fSeg').value,
+    teacher: document.getElementById('fTeacher').value,
+  };
+  const idx = RAW.weeks.map((_,i)=>i).filter(i => f.month === 'all' || RAW.months[i] === f.month);
+
+  const labels = idx.map(i => RAW.weeks[i]);
+  const revenue = idx.map(i => RAW.revenue[i]);
+  const load = idx.map(i => RAW.load[i]);
+  const newS = idx.map(i => RAW.newStudents[i]);
+  const churn = idx.map(i => RAW.churned[i]);
+  const active = idx.map(i => RAW.active[i]);
+  const nps = idx.map(i => RAW.nps[i]);
+
+  const loadAdj = load.map(v => f.teacher==='ft' ? Math.min(100,Math.round(v*1.07)) : f.teacher==='pt' ? Math.round(v*0.88) : v);
+  let revAdj = f.seg==='b2b' ? revenue.map(v=>Math.round(v*0.935)) : f.seg==='b2c' ? revenue.map(v=>Math.round(v*0.065)) : revenue;
+
+  const totalRev = revAdj.reduce((a,b)=>a+b,0);
+  const avgLoad = loadAdj.length ? Math.round(loadAdj.reduce((a,b)=>a+b,0)/loadAdj.length) : 0;
+  const totalNew = newS.reduce((a,b)=>a+b,0);
+  const totalChurn = churn.reduce((a,b)=>a+b,0);
+  const lastActive = active.length ? active[active.length-1] : 0;
+  const avgNPS = nps.length ? (nps.reduce((a,b)=>a+b,0)/nps.length).toFixed(1) : 0;
+  const retPct = lastActive ? Math.round((1 - totalChurn/(lastActive+totalChurn))*100) : 0;
+
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Виручка</div><div class="kpi-val">${Math.round(totalRev/1000)}к ₴</div><div class="kpi-delta up">↑ +8.3% MoM</div></div>
+    <div class="kpi"><div class="kpi-label">Активні студенти</div><div class="kpi-val">${lastActive}</div><div class="kpi-delta up">↑ +${totalNew-totalChurn} за період</div></div>
+    <div class="kpi"><div class="kpi-label">Retention</div><div class="kpi-val">${retPct}%</div><div class="kpi-delta ${retPct>80?'up':'warn'}">${retPct>80?'В нормі':'Під увагою'}</div></div>
+    <div class="kpi"><div class="kpi-label">Завант. викл.</div><div class="kpi-val">${avgLoad}%</div><div class="kpi-delta ${avgLoad>88?'warn':'up'}">${avgLoad>88?'↑ Критично':'↑ Зростає'}</div></div>
+    <div class="kpi"><div class="kpi-label">NPS</div><div class="kpi-val">${avgNPS}</div><div class="kpi-delta up">↑ Зростає</div></div>
+    <div class="kpi"><div class="kpi-label">Нові / Відписки</div><div class="kpi-val">${totalNew} / ${totalChurn}</div><div class="kpi-delta ${totalNew>totalChurn?'up':'down'}">${totalNew>totalChurn?'Приріст':'Відтік'}</div></div>
+  `;
+
+  const base = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false} } };
+  destroyCharts();
+
+  charts.revenue = new Chart(document.getElementById('revenueChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ data:revAdj, backgroundColor:'rgba(55,138,221,0.15)', borderColor:'#378ADD', borderWidth:1.5, borderRadius:4 }] },
+    options:{ ...base, scales:{ y:{ ticks:{callback:v=>(v/1000).toFixed(0)+'к',font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'} }, x:{ticks:{font:{size:9}},grid:{display:false}} } }
+  });
+
+  const lastLoad = loadAdj[loadAdj.length-1] || avgLoad;
+  charts.load = new Chart(document.getElementById('loadChart'), {
+    type:'line',
+    data:{ labels, datasets:[{ data:loadAdj, borderColor:lastLoad>88?'#EF9F27':'#1D9E75', backgroundColor:'rgba(29,158,117,0.1)', borderWidth:2, pointRadius:3, fill:true, tension:0.3 }] },
+    options:{ ...base, scales:{ y:{ min:60,max:100, ticks:{callback:v=>v+'%',font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'} }, x:{ticks:{font:{size:9}},grid:{display:false}} } }
+  });
+
+  charts.flow = new Chart(document.getElementById('flowChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Нові', data:newS, backgroundColor:'#378ADD', borderRadius:3 },
+      { label:'Відписки', data:churn.map(v=>-v), backgroundColor:'#E24B4A', borderRadius:3 }
+    ]},
+    options:{ ...base, scales:{ y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}}, x:{ticks:{font:{size:9}},grid:{display:false}} } }
+  });
+
+  const isMarOnly=f.month==='mar', isAprOnly=f.month==='apr';
+  let b2bR = isMarOnly?RAW.rev_b2b_mar : isAprOnly?RAW.rev_b2b_apr : RAW.rev_b2b_mar+RAW.rev_b2b_apr;
+  let b2cR = isMarOnly?RAW.rev_b2c_mar : isAprOnly?RAW.rev_b2c_apr : RAW.rev_b2c_mar+RAW.rev_b2c_apr;
+  let segData = f.seg==='b2b'?[b2bR,0]:f.seg==='b2c'?[0,b2cR]:[b2bR,b2cR];
+
+  charts.seg = new Chart(document.getElementById('segChart'), {
+    type:'doughnut',
+    data:{ labels:['B2B','B2C'], datasets:[{ data:segData, backgroundColor:['#378ADD','#97C459'], borderWidth:0, hoverOffset:4 }] },
+    options:{ ...base, cutout:'65%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return ` ${ctx.label}: ${t?Math.round(ctx.parsed/t*100):0}%`; }}} } }
+  });
+
+  charts.nps = new Chart(document.getElementById('npsChart'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'NPS', data:nps, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.1)', yAxisID:'yNps', borderWidth:2, pointRadius:3, fill:true, tension:0.3 },
+      { label:'Студенти', data:active, borderColor:'#7F77DD', borderDash:[4,3], yAxisID:'yStudents', borderWidth:1.5, pointRadius:2, fill:false, tension:0.3 }
+    ]},
+    options:{ ...base, scales:{
+      yNps:{ position:'left', min:7, max:10, ticks:{font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'} },
+      yStudents:{ position:'right', grid:{display:false}, ticks:{font:{size:10}} },
+      x:{ticks:{font:{size:9}},grid:{display:false}}
+    }}
+  });
+
+  document.getElementById('alerts').innerHTML = `
+    <div class="alert ${lastLoad>=90?'danger-a':'warn-a'}">
+      <div class="alert-title">${lastLoad>=90?'Критично':'Увага'}: завантаженість викладачів</div>
+      Поточне навантаження ${lastLoad}%. При x3 клієнтів — потрібне термінове наймання вже зараз.
+    </div>
+    <div class="alert warn-a">
+      <div class="alert-title">B2C Retention — слабке місце</div>
+      Відтік B2C студентів ~52%. Потрібна програма утримання або зміна продуктової пропозиції.
+    </div>
+    <div class="alert ok-a">
+      <div class="alert-title">B2B — стабільний ріст</div>
+      Виручка +8.3% MoM. NPS 8.8 і зростає. LTV контрактів 9–12 міс — фундамент міцний.
+    </div>
+  `;
+}
+render();
+</script>
+</body>
+</html>
